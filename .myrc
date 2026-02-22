@@ -46,3 +46,39 @@ mkvenv() {
     python3 -m venv $ssp_flag "$venv_dir" || { echo "Failed to create virtual environment."; return 1; }
     echo "Created virtual environment: $(basename "$venv_dir")"
 }
+
+# Simplifid slurm job submission
+myjob() {
+  # Usage: myjob [-gpu [type:count]] [cores] [hours]
+  # Defaults: 16 cores, 4 hours, no GPU; GPU defaults to a40:1
+  local cores=16
+  local hours=4
+  local gpu=0
+  local gres="a40:1"
+
+  # Parse flags
+  while [[ "$1" == -* ]]; do
+    case "$1" in
+      -gpu)
+        gpu=1
+        # If next arg looks like a gres spec (e.g. a40:2, v100:1), consume it
+        if [[ "${2:-}" =~ ^[a-zA-Z0-9]+:[0-9]+$ ]]; then
+          gres="$2"; shift
+        fi
+        shift ;;
+      *) echo "Unknown flag: $1"; return 1 ;;
+    esac
+  done
+
+  # Positional args
+  [[ -n "${1:-}" ]] && cores=$1
+  [[ -n "${2:-}" ]] && hours=$2
+
+  echo "Requesting: ${cores} cores, ${hours}h, ${cores}GB RAM$([ $gpu -eq 1 ] && echo ", GPU: $gres")"
+
+  if [ $gpu -eq 1 ]; then
+    srun -c "$cores" -p gpu -t "${hours}:00:00" --gres="gpu:${gres}" --mem "${cores}GB" --pty bash
+  else
+    srun -c "$cores" -t "${hours}:00:00" --mem "${cores}GB" --pty bash
+  fi
+}
