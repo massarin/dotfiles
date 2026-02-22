@@ -1,0 +1,15 @@
+{
+  "banner": "never",
+  "model": "claude-sonnet-4.6",
+  "render_markdown": true,
+  "theme": "auto",
+  "trusted_folders": [
+    "/Users/loco/chat"
+  ],
+  "asked_setup_terminals": [
+    "vscode"
+  ],
+  "allowed_urls": [
+    "https://github.com"
+  ]
+}

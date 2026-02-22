@@ -1,0 +1,14 @@
+# Ignore all
+*
+
+# Except
+!README.md
+!.gitignore
+
+!.myrc
+
+!.copilot/
+!.copilot/copilot-instructions.md
+!.copilot/config.json
+!.copilot/agents/
+!.copilot/agents/*
