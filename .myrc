@@ -1,3 +1,5 @@
+[ -f ~/.secrets ] && source ~/.secrets
+
 # Ubuntu-like aliases
 alias ll='ls -alF'
 alias la='ls -A'

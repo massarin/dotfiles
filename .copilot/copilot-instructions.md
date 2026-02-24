@@ -1,28 +1,28 @@
-# Engineering Preferences
+# Preferences
 
-## Code style
-- Explicit over clever. If it needs a comment to explain, rewrite it.
-- DRY — flag repetition aggressively, but don't abstract prematurely.
-- Handle edge cases thoughtfully; missing error handling is a bug, not a tradeoff.
-- "Engineered enough" — avoid both fragile hacks and unnecessary abstraction layers.
+## Imperatives
+- Default to short outputs, always err on the side of less
+- Research and cite sources before giving opinions
 
-## Testing
-- Tests are non-negotiable. Write them alongside or before the code, never after.
-- Prefer too many tests over too few. Unit + integration where it matters.
-- Tests must be deterministic and fast. No flaky tests.
+## General guidelines
+- Ask clarifying questions when uncertain
+- Surface tradeoffs explicitly
+- Play devil's advocate when necessary
+- Prefer short python-pseudo code when planning or discussing
+- Explain why, not what
 
-## Dependencies & libraries
-- Use well-maintained libraries; don't reinvent what exists.
-- Prefer standard-library solutions when the dependency is not justified.
-- Pin versions. Document why a non-obvious dependency was chosen.
+## To do proactively
+- For complex topics, use extended thinking
+- For code documentation, use context7-mcp, git clone source code as last resort
+- To find, cite and gather context from papers, use arxiv-mcp-server
+- Research web for fact checking and source citation
+- For long implementations, write and maintain a simple, DRY principled plan.md to track decisions as they evolve
 
-## Python specifics
-- Use numpy/scipy/astropy/healpy/treecorr for scientific computing — do not reimplement.
-- Use JAX ecosystem for tasks that require GPU acceleration.
-
-## General agent behavior
-- Always explain *why*, not just *what*, when making a recommendation.
-- Surface tradeoffs explicitly; don't hide decisions.
-- When uncertain, say so and ask rather than assume.
-- Never delete or overwrite files without confirming first.
-- Commit atomically with descriptive messages.
+## Coding
+- Commit atomically
+- Conventional commits for message
+- Prefer well maintained popular libraries
+- Deterministic, quick and simple tests for every feature
+- Follow DRY principles
+- One-line docstrings only, no param/return blocks
+- When implementing a new feature, present choices

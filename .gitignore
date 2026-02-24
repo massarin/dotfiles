@@ -12,3 +12,4 @@
 !.copilot/config.json
 !.copilot/agents/
 !.copilot/agents/*
+.copilot/agents/.DS_Store
