@@ -41,7 +41,7 @@ make_link() {
 skip_lookup() { local f="$1"; for s in "${SKIP[@]}"; do [[ "$s" == "$f" ]] && return 0; done; return 1; }
 
 info "Creating symlinks..."
-for entry in "$DOTFILES_DIR"/{.*,*}; do
+for entry in "$DOTFILES_DIR"/.[!.]* "$DOTFILES_DIR"/*; do
   name="$(basename "$entry")"
   skip_lookup "$name" && continue
   make_link "$entry" "$HOME/$name"

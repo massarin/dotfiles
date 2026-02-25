@@ -3,7 +3,8 @@
   "render_markdown": true,
   "theme": "auto",
   "trusted_folders": [
-    "/Users/loco/chat"
+    "/Users/loco/chat",
+    "/Users/loco/cosmo/stacked"
   ],
   "asked_setup_terminals": [
     "vscode"
