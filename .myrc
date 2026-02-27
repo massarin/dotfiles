@@ -119,7 +119,7 @@ start_remote_dev() {
   local logfile=$(mktemp /tmp/remotedev_XXXX.log)
 
   if [[ "$mode" == "jupyter" ]]; then
-    local start_cmd="source ~/.venvs/jlab/bin/activate && jupyter lab --no-browser --port=$port --ip=0.0.0.0 --ServerApp.token='' --ServerApp.password=''"
+    local start_cmd="source ~/envs/jlab/bin/activate && jupyter lab --no-browser --port=$port --ip=0.0.0.0 --ServerApp.token='' --ServerApp.password=''"
   else
     local start_cmd="~/.local/bin/code-server --bind-addr 0.0.0.0:$port --auth none"
   fi
@@ -178,7 +178,7 @@ remotedev() {
   [[ -z "$local_port" ]] && { [[ "$mode" == "jupyter" ]] && local_port=8888 || local_port=8080; }
 
   local tmpout=$(mktemp)
-  ssh "$remote_host" "source ~/.bashrc; start_remote_dev $extra_flags $cores $hours" 2>&1 | tee "$tmpout" &
+  ssh -n "$remote_host" "source ~/.bashrc; start_remote_dev $extra_flags $cores $hours" 2>&1 | tee "$tmpout" &
   local ssh_pid=$!
 
   echo -n "Waiting for $mode to start"
