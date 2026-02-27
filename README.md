@@ -1,12 +1,12 @@
-# dotfiles
+# chezmoi
 
 Minimal dotfiles managed with [chezmoi](https://chezmoi.io), shared across macOS and Linux/cluster.
 
 ## Install
 
 ```bash
-git clone https://github.com/massarin/dotfiles.git ~/dotfiles
-~/dotfiles/install.sh
+git clone https://github.com/massarin/chezmoi.git ~/.local/share/chezmoi
+~/.local/share/chezmoi/install.sh
 ```
 
 Installs chezmoi if absent, then applies all dotfiles. On first run it prompts:
@@ -36,8 +36,8 @@ dot_bashrc.tmpl       → ~/.bashrc
 
 **Add an alias or function** — edit the relevant file in `dot_myrc.d/`:
 ```bash
-$EDITOR ~/dotfiles/dot_myrc.d/aliases.sh
-chezmoi --source ~/dotfiles apply   # or just: source ~/.myrc
+$EDITOR ~/.local/share/chezmoi/dot_myrc.d/aliases.sh
+chezmoi apply   # or just: source ~/.myrc
 ```
 
 **Add a new topic** — create `dot_myrc.d/mytopic.sh`; it's sourced automatically.
