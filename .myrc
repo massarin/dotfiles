@@ -85,22 +85,22 @@ myjob() {
   fi
 }
 
-# Start jupyterlab session on remote cluster
-start_jupyter() {
+start_remote_dev() {
   local cores=16
   local hours=12
   local gpu=0
   local gres="a40:1"
   local mem="64GB"
-  local port=8888
+  local port=""
+  local mode="jupyter"  # default
 
   while [[ "$1" == -* ]]; do
     case "$1" in
+      -jupyter) mode="jupyter"; shift ;;
+      -vscode)  mode="vscode";  shift ;;
       -gpu)
         gpu=1
-        if [[ "${2:-}" =~ ^[a-zA-Z0-9]+:[0-9]+$ ]]; then
-          gres="$2"; shift
-        fi
+        if [[ "${2:-}" =~ ^[a-zA-Z0-9]+:[0-9]+$ ]]; then gres="$2"; shift; fi
         shift ;;
       -p) port="$2"; shift 2 ;;
       -mem) mem="$2"; shift 2 ;;
@@ -110,108 +110,103 @@ start_jupyter() {
   [[ -n "${1:-}" ]] && cores=$1
   [[ -n "${2:-}" ]] && hours=$2
 
-  echo "Submitting JupyterLab job: ${cores} cores, ${hours}h, ${mem} RAM$([ $gpu -eq 1 ] && echo ", GPU: $gres")"
+  # Default ports per mode
+  [[ -z "$port" ]] && { [[ "$mode" == "jupyter" ]] && port=8888 || port=8080; }
 
-  # Build srun command
   local srun_args="-c $cores -t ${hours}:00:00 --mem $mem"
   [ $gpu -eq 1 ] && srun_args="$srun_args -p gpu --gres=gpu:${gres}"
 
-  # Launch JupyterLab in background via srun, capture the compute node name
-  local logfile=$(mktemp /tmp/jupyter_slurm_XXXX.log)
+  local logfile=$(mktemp /tmp/remotedev_XXXX.log)
+
+  if [[ "$mode" == "jupyter" ]]; then
+    local start_cmd="source ~/.venvs/jlab/bin/activate && jupyter lab --no-browser --port=$port --ip=0.0.0.0 --ServerApp.token='' --ServerApp.password=''"
+  else
+    local start_cmd="~/.local/bin/code-server --bind-addr 0.0.0.0:$port --auth none"
+  fi
+
+  echo "Starting $mode on ${cores} cores, ${hours}h, ${mem}$([ $gpu -eq 1 ] && echo ", GPU: $gres")"
 
   srun $srun_args --pty bash -c "
-    echo \"NODENAME=\$(hostname)\" > $logfile
-    echo \"PORT=$port\" >> $logfile
-    jupyter lab --no-browser --port=$port --ip=0.0.0.0 --NotebookApp.token='' --NotebookApp.password='' 2>&1 | tee -a $logfile
+    echo \"REMOTEDEV_NODE=\$(hostname)\" > $logfile
+    echo \"REMOTEDEV_PORT=$port\" >> $logfile
+    $start_cmd 2>&1 | tee -a $logfile
   " &
 
-  local srun_pid=$!
-
-  # Wait for the node to be assigned
   echo -n "Waiting for compute node"
   local node=""
   for i in $(seq 1 30); do
     sleep 2
-    if grep -q "^NODENAME=" $logfile 2>/dev/null; then
-      node=$(grep "^NODENAME=" $logfile | cut -d= -f2)
+    if grep -q "^REMOTEDEV_NODE=" $logfile 2>/dev/null; then
+      node=$(grep "^REMOTEDEV_NODE=" $logfile | cut -d= -f2)
       break
     fi
     echo -n "."
   done
 
   if [[ -z "$node" ]]; then
-    echo -e "\nFailed to get node name. Check $logfile"
+    echo -e "\nFailed to get node. Check $logfile"
     return 1
   fi
 
-  echo -e "\nJupyterLab running on: $node:$port"
-  echo "Log: $logfile"
-  echo "JUPYTER_NODE=$node"
-  echo "JUPYTER_PORT=$port"
+  echo -e "\n$mode running on $node:$port (log: $logfile)"
+  echo "REMOTEDEV_NODE=$node"
+  echo "REMOTEDEV_PORT=$port"
 }
 
-# Calls start_jupyeter() from remote and connects to it
-jlab() {
-  local remote_host="lam"         # your favourite ssh alias
-  local local_port=8888
-  local remote_port=8888
-  local cores=16
-  local hours=12
-  local gpu_flag=""
+remotedev() {
+  local remote_host="lam"
+  local local_port=""
+  local mode="vscode"
+  local extra_flags=""
+  local cores=${1:-16}
+  local hours=${2:-12}
 
-  # Pass through args to parse locally for the tunnel setup
   while [[ "$1" == -* ]]; do
     case "$1" in
-      -gpu) gpu_flag="-gpu ${2:-}"; [[ "${2:-}" =~ ^[a-zA-Z0-9]+:[0-9]+$ ]] && shift; shift ;;
-      -lp) local_port="$2"; shift 2 ;;   # local port override
+      -jupyter) mode="jupyter"; extra_flags="$extra_flags -jupyter"; shift ;;
+      -vscode)  mode="vscode";  extra_flags="$extra_flags -vscode";  shift ;;
+      -gpu)
+        extra_flags="$extra_flags -gpu"
+        if [[ "${2:-}" =~ ^[a-zA-Z0-9]+:[0-9]+$ ]]; then extra_flags="$extra_flags $2"; shift; fi
+        shift ;;
+      -lp) local_port="$2"; shift 2 ;;
       *) break ;;
     esac
   done
-  [[ -n "${1:-}" ]] && cores=$1
-  [[ -n "${2:-}" ]] && hours=$2
 
-  echo "==> Connecting to $remote_host and starting JupyterLab..."
-  echo "    Resources: ${cores} cores, ${hours}h ${gpu_flag:+GPU: $gpu_flag}"
+  # Default local ports per mode
+  [[ -z "$local_port" ]] && { [[ "$mode" == "jupyter" ]] && local_port=8888 || local_port=8080; }
 
-  # Run start_jupyter on the cluster, capture output to find node+port
   local tmpout=$(mktemp)
-  ssh -t "$remote_host" "source ~/.bashrc; start_jupyter $gpu_flag $cores $hours" 2>&1 | tee "$tmpout" &
+  ssh -t "$remote_host" "source ~/.bashrc; start_remote_dev $extra_flags $cores $hours" 2>&1 | tee "$tmpout" &
   local ssh_pid=$!
 
-  # Wait until we see the node info printed
+  echo -n "Waiting for $mode to start"
   local node="" port=""
-  echo -n "Waiting for JupyterLab to start"
   for i in $(seq 1 60); do
     sleep 2
-    if grep -q "^JUPYTER_NODE=" "$tmpout" 2>/dev/null; then
-      node=$(grep "^JUPYTER_NODE=" "$tmpout" | tail -1 | cut -d= -f2 | tr -d '[:space:]')
-      port=$(grep "^JUPYTER_PORT=" "$tmpout" | tail -1 | cut -d= -f2 | tr -d '[:space:]')
+    if grep -q "^REMOTEDEV_NODE=" "$tmpout" 2>/dev/null; then
+      node=$(grep "^REMOTEDEV_NODE=" "$tmpout" | tail -1 | cut -d= -f2 | tr -d '[:space:]')
+      port=$(grep "^REMOTEDEV_PORT=" "$tmpout" | tail -1 | cut -d= -f2 | tr -d '[:space:]')
       break
     fi
     echo -n "."
   done
 
   if [[ -z "$node" ]]; then
-    echo -e "\nCould not detect compute node. Check output above."
+    echo -e "\nCould not detect compute node."
     return 1
   fi
 
-  echo -e "\nCompute node: $node, port: $port"
-  echo "==> Setting up SSH tunnel: localhost:${local_port} → ${remote_host} → ${node}:${port}"
-
-  # Open the SSH tunnel in background
+  echo -e "\nNode: $node → tunneling ${local_port} → ${node}:${port}"
   ssh -N -L "${local_port}:${node}:${port}" "$remote_host" &
   local tunnel_pid=$!
-  echo "Tunnel PID: $tunnel_pid (kill it later with: kill $tunnel_pid)"
+  echo "Tunnel PID: $tunnel_pid  (kill with: kill $tunnel_pid)"
 
   sleep 2
-  echo "==> Opening browser at http://localhost:${local_port}"
-  # Works on macOS; swap for xdg-open on Linux
-  open "http://localhost:${local_port}" 2>/dev/null || xdg-open "http://localhost:${local_port}" 2>/dev/null || \
-    echo "Open manually: http://localhost:${local_port}"
+  open "http://localhost:${local_port}" 2>/dev/null || xdg-open "http://localhost:${local_port}" 2>/dev/null
 
-  # Cleanup on exit
-  trap "echo 'Closing tunnel...'; kill $tunnel_pid 2>/dev/null" EXIT
+  trap "kill $tunnel_pid 2>/dev/null" EXIT
   wait $ssh_pid
 }
 
