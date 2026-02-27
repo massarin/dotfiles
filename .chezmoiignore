@@ -1,6 +1,24 @@
+# .claude runtime dirs — not managed by chezmoi
+.claude/backups
+.claude/cache
+.claude/debug
+.claude/downloads
+.claude/file-history
+.claude/history.jsonl
+.claude/ide
+.claude/plans
+.claude/plugins
+.claude/projects
+.claude/session-env
+.claude/settings.json
+.claude/shell-snapshots
+.claude/tasks
+.claude/todos
+
 # .copilot runtime dirs — not managed by chezmoi
 .copilot/logs
 .copilot/ide
 .copilot/session-state
 .copilot/pkg
 .copilot/command-history-state.json
+.copilot/config.json

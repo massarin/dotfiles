@@ -18,9 +18,7 @@
 !bin/
 !bin/cluster
 
-!dot_copilot/
-!dot_copilot/copilot-instructions.md
-!dot_copilot/config.json
-!dot_copilot/agents/
-!dot_copilot/agents/*
-dot_copilot/agents/.DS_Store
+!dot_cli_agent/
+!dot_cli_agent/instructions.md
+!dot_cli_agent/agents/
+!dot_cli_agent/agents/*
