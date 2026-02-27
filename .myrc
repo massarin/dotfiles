@@ -126,7 +126,7 @@ start_remote_dev() {
 
   echo "Starting $mode on ${cores} cores, ${hours}h, ${mem}$([ $gpu -eq 1 ] && echo ", GPU: $gres")"
 
-  srun $srun_args --pty bash -c "
+  srun $srun_args bash -c "
     echo \"REMOTEDEV_NODE=\$(hostname)\" > $logfile
     echo \"REMOTEDEV_PORT=$port\" >> $logfile
     $start_cmd 2>&1 | tee -a $logfile
@@ -178,7 +178,7 @@ remotedev() {
   [[ -z "$local_port" ]] && { [[ "$mode" == "jupyter" ]] && local_port=8888 || local_port=8080; }
 
   local tmpout=$(mktemp)
-  ssh -t "$remote_host" "source ~/.bashrc; start_remote_dev $extra_flags $cores $hours" 2>&1 | tee "$tmpout" &
+  ssh "$remote_host" "source ~/.bashrc; start_remote_dev $extra_flags $cores $hours" 2>&1 | tee "$tmpout" &
   local ssh_pid=$!
 
   echo -n "Waiting for $mode to start"
