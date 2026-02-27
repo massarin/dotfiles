@@ -4,6 +4,9 @@
 {{-   $clusterHost = promptStringOnce . "clusterHost" "Cluster SSH hostname" -}}
 {{- end -}}
 
+[chezmoi]
+    sourceDir = "{{ .chezmoi.sourceDir }}"
+
 [data]
     isCluster = {{ $isCluster }}
     clusterHost = "{{ $clusterHost }}"
