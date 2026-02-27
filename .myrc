@@ -156,10 +156,8 @@ start_remote_dev() {
 remotedev() {
   local remote_host="lam"
   local local_port=""
-  local mode="vscode"
+  local mode="jupyter"
   local extra_flags=""
-  local cores=${1:-16}
-  local hours=${2:-12}
 
   while [[ "$1" == -* ]]; do
     case "$1" in
@@ -173,40 +171,44 @@ remotedev() {
       *) break ;;
     esac
   done
+  local cores=${1:-8}
+  local hours=${2:-4}
 
-  # Default local ports per mode
   [[ -z "$local_port" ]] && { [[ "$mode" == "jupyter" ]] && local_port=8888 || local_port=8080; }
 
   local tmpout=$(mktemp)
+  echo "Streaming output to $tmpout"
+
   ssh -n "$remote_host" "source ~/.bashrc; start_remote_dev $extra_flags $cores $hours" 2>&1 | tee "$tmpout" &
   local ssh_pid=$!
 
   echo -n "Waiting for $mode to start"
   local node="" port=""
-  for i in $(seq 1 60); do
+  for i in $(seq 1 90); do
     sleep 2
-    if grep -q "^REMOTEDEV_NODE=" "$tmpout" 2>/dev/null; then
-      node=$(grep "^REMOTEDEV_NODE=" "$tmpout" | tail -1 | cut -d= -f2 | tr -d '[:space:]')
-      port=$(grep "^REMOTEDEV_PORT=" "$tmpout" | tail -1 | cut -d= -f2 | tr -d '[:space:]')
+    node=$(grep "^REMOTEDEV_NODE=" "$tmpout" 2>/dev/null | tail -1 | cut -d= -f2 | tr -d '[:space:]\r')
+    port=$(grep "^REMOTEDEV_PORT=" "$tmpout" 2>/dev/null | tail -1 | cut -d= -f2 | tr -d '[:space:]\r')
+    if [[ -n "$node" && -n "$port" ]]; then
       break
     fi
     echo -n "."
   done
 
-  if [[ -z "$node" ]]; then
-    echo -e "\nCould not detect compute node."
+  if [[ -z "$node" || -z "$port" ]]; then
+    echo -e "\nCould not detect compute node. Check $tmpout"
     return 1
   fi
 
-  echo -e "\nNode: $node → tunneling ${local_port} → ${node}:${port}"
-  ssh -N -L "${local_port}:${node}:${port}" "$remote_host" &
+  echo -e "\nNode: $node → tunneling localhost:${local_port} → ${node}:${port}"
+
+  ssh -n -N -L "${local_port}:${node}:${port}" "$remote_host" &
   local tunnel_pid=$!
   echo "Tunnel PID: $tunnel_pid  (kill with: kill $tunnel_pid)"
 
   sleep 2
   open "http://localhost:${local_port}" 2>/dev/null || xdg-open "http://localhost:${local_port}" 2>/dev/null
 
-  trap "kill $tunnel_pid 2>/dev/null" EXIT
+  trap "echo 'Closing tunnel...'; kill $tunnel_pid 2>/dev/null" EXIT
   wait $ssh_pid
 }
 
