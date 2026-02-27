@@ -85,6 +85,137 @@ myjob() {
   fi
 }
 
+# Start jupyterlab session on remote cluster
+start_jupyter() {
+  local cores=16
+  local hours=12
+  local gpu=0
+  local gres="a40:1"
+  local mem="64GB"
+  local port=8888
+
+  while [[ "$1" == -* ]]; do
+    case "$1" in
+      -gpu)
+        gpu=1
+        if [[ "${2:-}" =~ ^[a-zA-Z0-9]+:[0-9]+$ ]]; then
+          gres="$2"; shift
+        fi
+        shift ;;
+      -p) port="$2"; shift 2 ;;
+      -mem) mem="$2"; shift 2 ;;
+      *) echo "Unknown flag: $1"; return 1 ;;
+    esac
+  done
+  [[ -n "${1:-}" ]] && cores=$1
+  [[ -n "${2:-}" ]] && hours=$2
+
+  echo "Submitting JupyterLab job: ${cores} cores, ${hours}h, ${mem} RAM$([ $gpu -eq 1 ] && echo ", GPU: $gres")"
+
+  # Build srun command
+  local srun_args="-c $cores -t ${hours}:00:00 --mem $mem"
+  [ $gpu -eq 1 ] && srun_args="$srun_args -p gpu --gres=gpu:${gres}"
+
+  # Launch JupyterLab in background via srun, capture the compute node name
+  local logfile=$(mktemp /tmp/jupyter_slurm_XXXX.log)
+
+  srun $srun_args --pty bash -c "
+    echo \"NODENAME=\$(hostname)\" > $logfile
+    echo \"PORT=$port\" >> $logfile
+    jupyter lab --no-browser --port=$port --ip=0.0.0.0 --NotebookApp.token='' --NotebookApp.password='' 2>&1 | tee -a $logfile
+  " &
+
+  local srun_pid=$!
+
+  # Wait for the node to be assigned
+  echo -n "Waiting for compute node"
+  local node=""
+  for i in $(seq 1 30); do
+    sleep 2
+    if grep -q "^NODENAME=" $logfile 2>/dev/null; then
+      node=$(grep "^NODENAME=" $logfile | cut -d= -f2)
+      break
+    fi
+    echo -n "."
+  done
+
+  if [[ -z "$node" ]]; then
+    echo -e "\nFailed to get node name. Check $logfile"
+    return 1
+  fi
+
+  echo -e "\nJupyterLab running on: $node:$port"
+  echo "Log: $logfile"
+  echo "JUPYTER_NODE=$node"
+  echo "JUPYTER_PORT=$port"
+}
+
+# Calls start_jupyeter() from remote and connects to it
+jlab() {
+  local remote_host="lam"         # your favourite ssh alias
+  local local_port=8888
+  local remote_port=8888
+  local cores=16
+  local hours=12
+  local gpu_flag=""
+
+  # Pass through args to parse locally for the tunnel setup
+  while [[ "$1" == -* ]]; do
+    case "$1" in
+      -gpu) gpu_flag="-gpu ${2:-}"; [[ "${2:-}" =~ ^[a-zA-Z0-9]+:[0-9]+$ ]] && shift; shift ;;
+      -lp) local_port="$2"; shift 2 ;;   # local port override
+      *) break ;;
+    esac
+  done
+  [[ -n "${1:-}" ]] && cores=$1
+  [[ -n "${2:-}" ]] && hours=$2
+
+  echo "==> Connecting to $remote_host and starting JupyterLab..."
+  echo "    Resources: ${cores} cores, ${hours}h ${gpu_flag:+GPU: $gpu_flag}"
+
+  # Run start_jupyter on the cluster, capture output to find node+port
+  local tmpout=$(mktemp)
+  ssh -t "$remote_host" "source ~/.bashrc; start_jupyter $gpu_flag $cores $hours" 2>&1 | tee "$tmpout" &
+  local ssh_pid=$!
+
+  # Wait until we see the node info printed
+  local node="" port=""
+  echo -n "Waiting for JupyterLab to start"
+  for i in $(seq 1 60); do
+    sleep 2
+    if grep -q "^JUPYTER_NODE=" "$tmpout" 2>/dev/null; then
+      node=$(grep "^JUPYTER_NODE=" "$tmpout" | tail -1 | cut -d= -f2 | tr -d '[:space:]')
+      port=$(grep "^JUPYTER_PORT=" "$tmpout" | tail -1 | cut -d= -f2 | tr -d '[:space:]')
+      break
+    fi
+    echo -n "."
+  done
+
+  if [[ -z "$node" ]]; then
+    echo -e "\nCould not detect compute node. Check output above."
+    return 1
+  fi
+
+  echo -e "\nCompute node: $node, port: $port"
+  echo "==> Setting up SSH tunnel: localhost:${local_port} → ${remote_host} → ${node}:${port}"
+
+  # Open the SSH tunnel in background
+  ssh -N -L "${local_port}:${node}:${port}" "$remote_host" &
+  local tunnel_pid=$!
+  echo "Tunnel PID: $tunnel_pid (kill it later with: kill $tunnel_pid)"
+
+  sleep 2
+  echo "==> Opening browser at http://localhost:${local_port}"
+  # Works on macOS; swap for xdg-open on Linux
+  open "http://localhost:${local_port}" 2>/dev/null || xdg-open "http://localhost:${local_port}" 2>/dev/null || \
+    echo "Open manually: http://localhost:${local_port}"
+
+  # Cleanup on exit
+  trap "echo 'Closing tunnel...'; kill $tunnel_pid 2>/dev/null" EXIT
+  wait $ssh_pid
+}
+
+# Print info of .fits/.parquet/.bin 
 file_info() {
     if [[ -z "$1" ]]; then
         echo "Error: Please provide a file as an argument"

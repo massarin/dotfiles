@@ -10,6 +10,10 @@
     "vscode"
   ],
   "allowed_urls": [
-    "https://github.com"
+    "https://github.com",
+    "https://code.visualstudio.com",
+    "https://www.reddit.com",
+    "https://hpc-wiki.info",
+    "https://www.hpc.dtu.dk"
   ]
 }
