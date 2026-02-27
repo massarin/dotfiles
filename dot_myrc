@@ -1,0 +1,5 @@
+[ -f ~/.secrets ] && source ~/.secrets
+
+for f in ~/.myrc.d/*.sh; do
+    [ -f "$f" ] && source "$f"
+done

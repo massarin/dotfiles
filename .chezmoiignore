@@ -1,0 +1,6 @@
+# .copilot runtime dirs — not managed by chezmoi
+.copilot/logs
+.copilot/ide
+.copilot/session-state
+.copilot/pkg
+.copilot/command-history-state.json

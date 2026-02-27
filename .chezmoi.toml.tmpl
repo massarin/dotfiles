@@ -1,0 +1,9 @@
+{{- $isCluster := promptBoolOnce . "isCluster" "Is this a cluster/HPC machine" -}}
+{{- $clusterHost := "lam" -}}
+{{- if not $isCluster -}}
+{{-   $clusterHost = promptStringOnce . "clusterHost" "Cluster SSH hostname" -}}
+{{- end -}}
+
+[data]
+    isCluster = {{ $isCluster }}
+    clusterHost = "{{ $clusterHost }}"

@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""Cluster session manager — works on both local and cluster machines.
+
+Subcommands:
+  status <type>   Check for a live session; print JSON or exit 1
+  start <type>    Run ON cluster: submit srun job, write ~/.remotedev/<type>.json
+  pty             Run ON cluster: interactive PTY session (reuses by default)
+  connect <type>  Run LOCALLY: SSH, start/reuse session, tunnel, open browser
+"""
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+SESSION_DIR = Path.home() / ".remotedev"
+DEFAULTS = dict(cores=16, hours=4, mem="64GB", gres="a40:1")
+DEFAULT_PORT = {"jupyter": 8888, "vscode": 8080}
+
+
+# ── shared ────────────────────────────────────────────────────────────────────
+
+def srun_args(cores, hours, gpu, gres, mem):
+    """Build srun argument list shared by all session types."""
+    args = ["-c", str(cores), "-t", f"{hours}:00:00", "--mem", mem]
+    if gpu:
+        args += ["-p", "gpu", f"--gres=gpu:{gres}"]
+    return args
+
+
+def get_session(session_type):
+    """Return session dict if a live session exists, else None."""
+    f = SESSION_DIR / f"{session_type}.json"
+    if not f.exists():
+        return None
+    session = json.loads(f.read_text())
+    job_id = session.get("job_id")
+    if job_id:
+        r = subprocess.run(
+            ["squeue", "-j", str(job_id), "-h"],
+            capture_output=True, text=True
+        )
+        if not r.stdout.strip():
+            f.unlink()
+            return None
+    return session
+
+
+# ── subcommands ───────────────────────────────────────────────────────────────
+
+def cmd_status(args):
+    """Print session JSON if live, exit 1 if not."""
+    s = get_session(args.type)
+    if not s:
+        sys.exit(1)
+    print(json.dumps(s))
+
+
+def cmd_start(args):
+    """Run ON cluster: submit background srun job that writes session JSON on start."""
+    SESSION_DIR.mkdir(exist_ok=True)
+    session_file = SESSION_DIR / f"{args.type}.json"
+    port = args.port or DEFAULT_PORT.get(args.type, 8888)
+
+    cmds = {
+        "jupyter": (
+            f"source ~/envs/jlab/bin/activate && "
+            f"jupyter lab --no-browser --port={port} --ip=0.0.0.0 "
+            f"--ServerApp.token='' --ServerApp.password=''"
+        ),
+        "vscode": f"~/.local/bin/code-server --bind-addr 0.0.0.0:{port} --auth none",
+    }
+    if args.type not in cmds:
+        print(f"Unknown session type: {args.type}", file=sys.stderr)
+        sys.exit(1)
+
+    # Write JSON as first thing the job does so the local side can poll for it
+    write_json = (
+        f"echo '{{\"node\":\"'$(hostname)'\",\"port\":{port},"
+        f"\"job_id\":\"'$SLURM_JOB_ID'\",\"type\":\"{args.type}\"}}' "
+        f"> {session_file}"
+    )
+    inner = f"{write_json}\n{cmds[args.type]}"
+
+    srun = ["srun"] + srun_args(args.cores, args.hours, args.gpu, args.gres, args.mem)
+    srun += ["bash", "-c", inner]
+    subprocess.Popen(srun, start_new_session=True)
+
+
+def cmd_pty(args):
+    """Run ON cluster: interactive PTY session; reuse by default."""
+    if not args.new:
+        s = get_session("pty")
+        if s:
+            print(f"Existing PTY job {s['job_id']} running on {s['node']}")
+            print(f"SSH directly: ssh {s['node']}")
+            print("Use --new to start a fresh session.")
+            return
+
+    SESSION_DIR.mkdir(exist_ok=True)
+    session_file = SESSION_DIR / "pty.json"
+    write_json = (
+        f"echo '{{\"node\":\"'$(hostname)'\","
+        f"\"job_id\":\"'$SLURM_JOB_ID'\",\"type\":\"pty\"}}' > {session_file}"
+    )
+    inner = f"{write_json}\nexec bash"
+
+    srun = ["srun"] + srun_args(args.cores, args.hours, args.gpu, args.gres, args.mem)
+    srun += ["--pty", "bash", "-c", inner]
+    # Replace current process so the PTY is fully interactive
+    os.execvp("srun", srun)
+
+
+def cmd_connect(args):
+    """Run LOCALLY: SSH to cluster, reuse or start session, tunnel, open browser."""
+    cluster_host = os.environ.get("CLUSTER_HOST", args.cluster_host)
+    port = args.port or DEFAULT_PORT.get(args.type, 8888)
+    local_port = args.local_port or port
+
+    if not args.new:
+        r = subprocess.run(
+            ["ssh", cluster_host,
+             f"python3 ~/dotfiles/bin/cluster status {args.type}"],
+            capture_output=True, text=True,
+        )
+        if r.returncode == 0:
+            s = json.loads(r.stdout.strip())
+            print(f"Reusing {args.type} session on {s['node']}:{s['port']}")
+            _setup_tunnel(cluster_host, s["node"], s["port"], local_port)
+            return
+
+    # Start a new session
+    start_cmd = (
+        f"source ~/.bashrc; python3 ~/dotfiles/bin/cluster start {args.type} "
+        f"--cores {args.cores} --hours {args.hours} --mem {args.mem} --port {port}"
+    )
+    if args.gpu:
+        start_cmd += f" --gpu --gres {args.gres}"
+
+    subprocess.Popen(["ssh", cluster_host, start_cmd])
+
+    print(f"Waiting for {args.type} to start", end="", flush=True)
+    for _ in range(60):
+        time.sleep(2)
+        r = subprocess.run(
+            ["ssh", cluster_host,
+             f"python3 ~/dotfiles/bin/cluster status {args.type}"],
+            capture_output=True, text=True,
+        )
+        if r.returncode == 0:
+            s = json.loads(r.stdout.strip())
+            print(f"\n{args.type} running on {s['node']}:{s['port']}")
+            _setup_tunnel(cluster_host, s["node"], s["port"], local_port)
+            return
+        print(".", end="", flush=True)
+
+    print("\nTimed out waiting for session. Check the cluster.")
+    sys.exit(1)
+
+
+def _setup_tunnel(cluster_host, node, remote_port, local_port):
+    tunnel = subprocess.Popen(
+        ["ssh", "-N", "-L", f"{local_port}:{node}:{remote_port}", cluster_host]
+    )
+    print(f"Tunnel: localhost:{local_port} → {node}:{remote_port}  (PID {tunnel.pid})")
+    time.sleep(1)
+    url = f"http://localhost:{local_port}"
+    os.system(f"open {url} 2>/dev/null || xdg-open {url} 2>/dev/null")
+    try:
+        tunnel.wait()
+    except KeyboardInterrupt:
+        print("\nClosing tunnel...")
+        tunnel.terminate()
+
+
+# ── arg parsing ───────────────────────────────────────────────────────────────
+
+def add_srun_args(p):
+    """Add shared srun arguments to a subparser."""
+    p.add_argument("--cores", type=int, default=DEFAULTS["cores"])
+    p.add_argument("--hours", type=int, default=DEFAULTS["hours"])
+    p.add_argument("--mem", default=DEFAULTS["mem"])
+    p.add_argument("--gpu", action="store_true")
+    p.add_argument("--gres", default=DEFAULTS["gres"])
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Cluster session manager")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    # status
+    p = sub.add_parser("status", help="Check for live session")
+    p.add_argument("type", choices=["jupyter", "vscode", "pty"])
+
+    # start
+    p = sub.add_parser("start", help="Submit srun job (run on cluster)")
+    p.add_argument("type", choices=["jupyter", "vscode"])
+    p.add_argument("--port", type=int)
+    add_srun_args(p)
+
+    # pty
+    p = sub.add_parser("pty", help="Interactive PTY session (run on cluster)")
+    p.add_argument("--new", action="store_true", help="Force new session")
+    add_srun_args(p)
+
+    # connect
+    p = sub.add_parser("connect", help="Start/reuse session and tunnel (run locally)")
+    p.add_argument("type", choices=["jupyter", "vscode"])
+    p.add_argument("--port", type=int)
+    p.add_argument("--local-port", dest="local_port", type=int)
+    p.add_argument("--cluster-host", dest="cluster_host", default="lam")
+    p.add_argument("--new", action="store_true", help="Force new session")
+    add_srun_args(p)
+
+    args = parser.parse_args()
+    {"status": cmd_status, "start": cmd_start, "pty": cmd_pty, "connect": cmd_connect}[
+        args.cmd
+    ](args)
+
+
+if __name__ == "__main__":
+    main()
