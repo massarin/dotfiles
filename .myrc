@@ -116,7 +116,7 @@ start_remote_dev() {
   local srun_args="-c $cores -t ${hours}:00:00 --mem $mem"
   [ $gpu -eq 1 ] && srun_args="$srun_args -p gpu --gres=gpu:${gres}"
 
-  local logfile=$(mktemp /tmp/remotedev_XXXX.log)
+  local logfile=~/remotedev_$$.log
 
   if [[ "$mode" == "jupyter" ]]; then
     local start_cmd="source ~/envs/jlab/bin/activate && jupyter lab --no-browser --port=$port --ip=0.0.0.0 --ServerApp.token='' --ServerApp.password=''"
@@ -186,10 +186,21 @@ remotedev() {
   local node="" port=""
   for i in $(seq 1 90); do
     sleep 2
-    node=$(grep "^REMOTEDEV_NODE=" "$tmpout" 2>/dev/null | tail -1 | cut -d= -f2 | tr -d '[:space:]\r')
-    port=$(grep "^REMOTEDEV_PORT=" "$tmpout" 2>/dev/null | tail -1 | cut -d= -f2 | tr -d '[:space:]\r')
-    if [[ -n "$node" && -n "$port" ]]; then
-      break
+    # For jupyter: parse "http://nodeXX:PORT/lab" from output
+    # For vscode:  parse "HTTP server listening on http://0.0.0.0:PORT"
+    if [[ "$mode" == "jupyter" ]]; then
+      local url
+      url=$(grep -oE "http://node[^:]+:[0-9]+" "$tmpout" 2>/dev/null | head -1)
+      if [[ -n "$url" ]]; then
+        node=$(echo "$url" | grep -oE "node[^:]+" )
+        port=$(echo "$url" | grep -oE "[0-9]+$")
+        break
+      fi
+    else
+      port=$(grep -oE "0\.0\.0\.0:[0-9]+" "$tmpout" 2>/dev/null | head -1 | cut -d: -f2)
+      # For vscode we still need the node from the REMOTEDEV_NODE marker
+      node=$(grep "^REMOTEDEV_NODE=" "$tmpout" 2>/dev/null | tail -1 | cut -d= -f2 | tr -d '[:space:]\r')
+      [[ -n "$node" && -n "$port" ]] && break
     fi
     echo -n "."
   done
