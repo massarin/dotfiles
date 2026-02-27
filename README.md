@@ -5,7 +5,7 @@ Minimal dotfiles managed with [chezmoi](https://chezmoi.io), shared across macOS
 ## Install
 
 ```bash
-git clone <repo> ~/dotfiles
+git clone https://github.com/massarin/dotfiles.git ~/dotfiles
 ~/dotfiles/install.sh
 ```
 
@@ -15,7 +15,7 @@ Installs chezmoi if absent, then applies all dotfiles. On first run it prompts:
 
 Re-apply after changes:
 ```bash
-chezmoi --source ~/dotfiles apply
+chezmoi apply
 ```
 
 ## Structure

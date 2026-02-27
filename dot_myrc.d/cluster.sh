@@ -1,4 +1,4 @@
-_cluster() { python3 "$HOME/dotfiles/bin/cluster" "$@"; }
+_cluster() { python3 "$HOME/bin/cluster" "$@"; }
 
 # PTY and start only make sense on the cluster (srun required)
 if command -v srun &>/dev/null; then
