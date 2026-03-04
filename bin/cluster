@@ -141,7 +141,7 @@ def cmd_connect(args):
         if r.returncode == 0:
             s = json.loads(r.stdout.strip())
             print(f"Reusing {args.type} session on {s['node']}:{s['port']}")
-            _setup_tunnel(cluster_host, s["node"], s["port"], local_port, s.get("token"))
+            _setup_tunnel(cluster_host, s["node"], s["port"], local_port, s.get("token"), s.get("job_id"))
             return
 
     # Start a new session
@@ -165,7 +165,7 @@ def cmd_connect(args):
         if r.returncode == 0:
             s = json.loads(r.stdout.strip())
             print(f"\n{args.type} running on {s['node']}:{s['port']}")
-            _setup_tunnel(cluster_host, s["node"], s["port"], local_port, s.get("token"))
+            _setup_tunnel(cluster_host, s["node"], s["port"], local_port, s.get("token"), s.get("job_id"))
             return
         print(".", end="", flush=True)
 
@@ -173,7 +173,7 @@ def cmd_connect(args):
     sys.exit(1)
 
 
-def _setup_tunnel(cluster_host, node, remote_port, local_port, token=None):
+def _setup_tunnel(cluster_host, node, remote_port, local_port, token=None, job_id=None):
     tunnel = subprocess.Popen(
         ["ssh", "-N", "-L", f"{local_port}:localhost:{remote_port}", "-J", cluster_host, node]
     )
@@ -182,12 +182,15 @@ def _setup_tunnel(cluster_host, node, remote_port, local_port, token=None):
     url = f"http://localhost:{local_port}"
     if token:
         url += f"?tkn={token}"
-    os.system(f"open {url} 2>/dev/null || xdg-open {url} 2>/dev/null")
+    os.system(f"open -a 'Google Chrome' {url} 2>/dev/null || xdg-open {url} 2>/dev/null")
     try:
         tunnel.wait()
     except KeyboardInterrupt:
         print("\nClosing tunnel...")
         tunnel.terminate()
+        if job_id:
+            print(f"Cancelling job {job_id}...")
+            subprocess.run(["ssh", cluster_host, f"scancel {job_id}"])
 
 
 # ── arg parsing ───────────────────────────────────────────────────────────────
