@@ -5,7 +5,7 @@ Minimal dotfiles managed with [chezmoi](https://chezmoi.io), shared across macOS
 ## Install
 
 ```bash
-git clone git@github.com:massarin/chezmoi.git ~/.local/share/chezmoi
+chezmoi init --apply git@github.com:massarin/dotfiles.git
 ~/.local/share/chezmoi/install.sh
 ```
 

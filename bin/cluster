@@ -17,7 +17,7 @@ from pathlib import Path
 
 SESSION_DIR = Path.home() / ".remotedev"
 DEFAULTS = dict(cores=16, hours=4, mem="64GB", gres="a40:1")
-DEFAULT_PORT = {"jupyter": 8888, "vscode": 8080}
+DEFAULT_PORT = {"jupyter": 8888, "vscode": 8000}
 
 
 # ── shared ────────────────────────────────────────────────────────────────────
@@ -64,25 +64,38 @@ def cmd_start(args):
     session_file = SESSION_DIR / f"{args.type}.json"
     port = args.port or DEFAULT_PORT.get(args.type, 8888)
 
-    cmds = {
-        "jupyter": (
-            f"source ~/envs/jlab/bin/activate && "
-            f"jupyter lab --no-browser --port={port} --ip=0.0.0.0 "
-            f"--ServerApp.token='' --ServerApp.password=''"
-        ),
-        "vscode": f"~/.local/bin/code-server --bind-addr 0.0.0.0:{port} --auth none",
-    }
-    if args.type not in cmds:
+    if args.type not in ("jupyter", "vscode"):
         print(f"Unknown session type: {args.type}", file=sys.stderr)
         sys.exit(1)
 
-    # Write JSON as first thing the job does so the local side can poll for it
-    write_json = (
-        f"echo '{{\"node\":\"'$(hostname)'\",\"port\":{port},"
-        f"\"job_id\":\"'$SLURM_JOB_ID'\",\"type\":\"{args.type}\"}}' "
-        f"> {session_file}"
-    )
-    inner = f"{write_json}\n{cmds[args.type]}"
+    if args.type == "jupyter":
+        write_json = (
+            f"echo '{{\"node\":\"'$(hostname)'\",\"port\":{port},"
+            f"\"job_id\":\"'$SLURM_JOB_ID'\",\"type\":\"{args.type}\"}}' "
+            f"> {session_file}"
+        )
+        jupyter_cmd = (
+            f"source ~/envs/jlab/bin/activate && "
+            f"jupyter lab --no-browser --port={port} --ip=0.0.0.0 "
+            f"--ServerApp.token='' --ServerApp.password=''"
+        )
+        inner = f"{write_json}\n{jupyter_cmd}"
+    else:
+        # code-cli serve-web prints the token in its output; capture it then write JSON
+        inner = (
+            f"_tmplog=$(mktemp)\n"
+            f"code-cli serve-web --port {port} 2>&1 | tee \"$_tmplog\" &\n"
+            f"_pid=$!\n"
+            f"for _i in $(seq 1 30); do\n"
+            f"  _token=$(grep -oP '(?<=\\?tkn=)[a-zA-Z0-9-]+' \"$_tmplog\" 2>/dev/null | head -1)\n"
+            f"  [ -n \"$_token\" ] && break\n"
+            f"  sleep 1\n"
+            f"done\n"
+            f"echo '{{\"node\":\"'$(hostname)'\",\"port\":{port},"
+            f"\"job_id\":\"'$SLURM_JOB_ID'\",\"type\":\"vscode\",\"token\":\"'$_token'\"}}' "
+            f"> {session_file}\n"
+            f"wait $_pid"
+        )
 
     srun = ["srun"] + srun_args(args.cores, args.hours, args.gpu, args.gres, args.mem)
     srun += ["bash", "-c", inner]
@@ -128,7 +141,7 @@ def cmd_connect(args):
         if r.returncode == 0:
             s = json.loads(r.stdout.strip())
             print(f"Reusing {args.type} session on {s['node']}:{s['port']}")
-            _setup_tunnel(cluster_host, s["node"], s["port"], local_port)
+            _setup_tunnel(cluster_host, s["node"], s["port"], local_port, s.get("token"))
             return
 
     # Start a new session
@@ -152,7 +165,7 @@ def cmd_connect(args):
         if r.returncode == 0:
             s = json.loads(r.stdout.strip())
             print(f"\n{args.type} running on {s['node']}:{s['port']}")
-            _setup_tunnel(cluster_host, s["node"], s["port"], local_port)
+            _setup_tunnel(cluster_host, s["node"], s["port"], local_port, s.get("token"))
             return
         print(".", end="", flush=True)
 
@@ -160,13 +173,15 @@ def cmd_connect(args):
     sys.exit(1)
 
 
-def _setup_tunnel(cluster_host, node, remote_port, local_port):
+def _setup_tunnel(cluster_host, node, remote_port, local_port, token=None):
     tunnel = subprocess.Popen(
         ["ssh", "-N", "-L", f"{local_port}:{node}:{remote_port}", cluster_host]
     )
     print(f"Tunnel: localhost:{local_port} → {node}:{remote_port}  (PID {tunnel.pid})")
     time.sleep(1)
     url = f"http://localhost:{local_port}"
+    if token:
+        url += f"?tkn={token}"
     os.system(f"open {url} 2>/dev/null || xdg-open {url} 2>/dev/null")
     try:
         tunnel.wait()
