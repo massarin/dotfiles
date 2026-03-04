@@ -175,7 +175,7 @@ def cmd_connect(args):
 
 def _setup_tunnel(cluster_host, node, remote_port, local_port, token=None):
     tunnel = subprocess.Popen(
-        ["ssh", "-N", "-L", f"{local_port}:{node}:{remote_port}", cluster_host]
+        ["ssh", "-N", "-L", f"{local_port}:localhost:{remote_port}", "-J", cluster_host, node]
     )
     print(f"Tunnel: localhost:{local_port} → {node}:{remote_port}  (PID {tunnel.pid})")
     time.sleep(1)
