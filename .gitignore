@@ -20,6 +20,7 @@
 
 !dot_cli_agent/
 !dot_cli_agent/instructions.md
+!dot_cli_agent/settings.md
 !dot_cli_agent/agents/
 !dot_cli_agent/agents/*
 !run_onchange_setup-cli-agent-symlinks.sh
