@@ -58,3 +58,7 @@ myjob --gpu a100:2 32 8    # GPU type:count, 32 cores, 8h
 
 Sessions are reused by default via `~/.remotedev/<type>.json`.
 Override cluster host: `CLUSTER_HOST=myhost remotedev jupyter`
+
+## Secrets
+
+Kept in `~/.config/chezmoi/chezmoi.toml`, source ENV variable with `dot_myrc.d/secrets.sh.tmpl`
