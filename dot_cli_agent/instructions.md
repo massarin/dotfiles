@@ -8,4 +8,6 @@ Write DRY, general code that is easy to extend — I am lazy and prefer concise 
 
 Keep all output to a minimum — no unnecessary comments, docstrings, changelogs, or descriptions; I already see diff on vscode
 
+Verify all output before presenting it — run code, validate configs, write minimal pytest tests for non-trivial logic. You handle thought to code conversion, I verify thought is sound and meaningful
+
 Prefer context7 or arxiv MCP over web search when possible — denser, more scoped information, conserves context
