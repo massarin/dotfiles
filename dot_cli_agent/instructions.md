@@ -10,4 +10,4 @@ Keep all output to a minimum — no unnecessary comments, docstrings, changelogs
 
 Verify all output before presenting it — run code, validate configs, write minimal pytest tests for non-trivial logic. You handle thought to code conversion, I verify thought is sound and meaningful
 
-Prefer context7 or arxiv MCP over web search when possible — denser, more scoped information, conserves context
+Prefer context7, github mcp or arxiv MCP over web search when possible — you must use such tools for up to date api and explore existing code. They give denser, more scoped information and conserves context
