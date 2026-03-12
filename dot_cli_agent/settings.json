@@ -13,6 +13,9 @@
       "WebSearch(*)",
       "Bash(python *)",
       "Bash(python3 *)",
+      "Bash(python -c *)",
+      "Bash(python3 -c *)",
+      "Bash(.venv/bin/python -c *)"
       "Bash(.venv/bin/python *)",
       "Bash(.venv/bin/pytest *)",
       "Bash(.venv/bin/pip *)",
