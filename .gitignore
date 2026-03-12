@@ -9,8 +9,8 @@
 !.chezmoiignore
 
 !dot_myrc
-!dot_myrc.d/
-!dot_myrc.d/*
+!dot_myrc_dir/
+!dot_myrc_dir/*
 
 !dot_zshrc.tmpl
 !dot_bashrc.tmpl

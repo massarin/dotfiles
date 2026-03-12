@@ -1,3 +1,3 @@
-for f in ~/.myrc.d/*.sh; do
+for f in ~/.myrc_dir/*.sh; do
     [ -f "$f" ] && source "$f"
 done

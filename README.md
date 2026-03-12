@@ -24,8 +24,8 @@ chezmoi apply
 ## Structure
 
 ```
-dot_myrc              → ~/.myrc          (sources all of .myrc.d/)
-dot_myrc.d/
+dot_myrc              → ~/.myrc          (sources all of .myrc_dir/)
+dot_myrc_dir/
   aliases.sh          shell aliases
   venv.sh             avenv / mkvenv
   utils.sh            file_info
@@ -37,13 +37,13 @@ dot_bashrc.tmpl       → ~/.bashrc
 
 ## Editing
 
-**Add an alias or function** — edit the relevant file in `dot_myrc.d/`:
+**Add an alias or function** — edit the relevant file in `dot_myrc_dir/`:
 ```bash
-$EDITOR ~/.local/share/chezmoi/dot_myrc.d/aliases.sh
+$EDITOR ~/.local/share/chezmoi/dot_myrc_dir/aliases.sh
 chezmoi apply   # or just: source ~/.myrc
 ```
 
-**Add a new topic** — create `dot_myrc.d/mytopic.sh`; it's sourced automatically.
+**Add a new topic** — create `dot_myrc_dir/mytopic.sh`; it's sourced automatically.
 
 **Shell RC changes** (PATH, env vars) — edit `dot_zshrc.tmpl` or `dot_bashrc.tmpl`.
 Use `{{ if .isCluster }}...{{ end }}` for cluster-only blocks.
@@ -64,4 +64,4 @@ Override cluster host: `CLUSTER_HOST=myhost remotedev jupyter`
 
 ## Secrets
 
-Kept in `~/.config/chezmoi/chezmoi.toml`, source ENV variable with `dot_myrc.d/secrets.sh.tmpl`
+Kept in `~/.config/chezmoi/chezmoi.toml`, source ENV variable with `dot_myrc_dir/secrets.sh.tmpl`
