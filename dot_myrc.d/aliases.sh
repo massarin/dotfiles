@@ -10,3 +10,6 @@ alias c='clear'
 # Dev aliases
 alias python3='python3.12'
 alias python='python3.12'
+
+# Claude, MAKE SURE /sandox IS ON
+alias yolo='claude --dangerously-skip-permissions'
