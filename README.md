@@ -1,7 +1,9 @@
 # chezmoi
 
 Minimal dotfiles managed with [chezmoi](https://chezmoi.io), shared across macOS and Linux/cluster.
-My [`CLAUDE.md`/`copilot-instructions.md`](https://github.com/massarin/dotfiles/blob/main/dot_cli_agent/instructions.md)
+
+Check out my [`CLAUDE.md`/`copilot-instructions.md`](https://raw.githubusercontent.com/massarin/dotfiles/refs/heads/main/dot_cli_agent/instructions.md)
+
 
 ## Install
 
