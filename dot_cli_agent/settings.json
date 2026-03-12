@@ -81,7 +81,7 @@
       "Read(**/.aws/**)",
       "Bash(git push --force *)",
       "Bash(git push -f *)"
-    ],
+    ]
   },
   "sandbox": {
     "enabled": true
