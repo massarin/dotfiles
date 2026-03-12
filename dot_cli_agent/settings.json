@@ -1,7 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "defaultMode": "acceptEdits",
     "allow": [
       "Read(**)",
       "Write(**)",
@@ -81,9 +80,11 @@
       "Read(**/.aws/**)",
       "Bash(git push --force *)",
       "Bash(git push -f *)"
-    ]
+    ],
+    "defaultMode": "acceptEdits"
   },
   "sandbox": {
     "enabled": true
-  }
+  },
+  "skipDangerousModePermissionPrompt": true
 }
