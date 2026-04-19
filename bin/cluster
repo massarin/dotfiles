@@ -18,15 +18,17 @@ import time
 from pathlib import Path
 
 SESSION_DIR = Path.home() / ".remotedev"
-DEFAULTS = dict(cores=16, hours=4, mem="64GB", gres="a40:1")
+DEFAULTS = dict(cores=32, hours=4, mem="64GB", partition="batch_amd_32c", gres="a40:1")
 DEFAULT_PORT = {"jupyter": 8888, "vscode": 8000}
 
 
 def srun_args(a):
     """Build srun argument list from parsed args."""
-    args = ["-c", str(a.cores), "-t", f"{a.hours}:00:00", "--mem", a.mem]
     if a.gpu:
-        args += ["-p", "gpu", f"--gres=gpu:{a.gres}"]
+        partition = "gpu"
+        args = ["-p", partition, "-c", str(a.cores), "-t", f"{a.hours}:00:00", "--mem", a.mem, f"--gres=gpu:{a.gres}"]
+    else:
+        args = ["-p", a.partition, "-c", str(a.cores), "-t", f"{a.hours}:00:00", "--mem", a.mem]
     return args
 
 
@@ -196,6 +198,7 @@ def add_srun_args(p):
     p.add_argument("--cores", type=int, default=DEFAULTS["cores"])
     p.add_argument("--hours", type=int, default=DEFAULTS["hours"])
     p.add_argument("--mem", default=DEFAULTS["mem"])
+    p.add_argument("--partition", default=DEFAULTS["partition"])
     p.add_argument("--gpu", action="store_true")
     p.add_argument("--gres", default=DEFAULTS["gres"])
 
