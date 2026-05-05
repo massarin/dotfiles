@@ -125,6 +125,17 @@ def cmd_connect(args):
     port = args.port or DEFAULT_PORT[args.type]
     local_port = args.local_port or port
 
+    # Reconnect to an existing job by ID (e.g. after VPN drop / terminal freeze)
+    if args.job_id:
+        r = ssh(host, f"squeue -j {args.job_id} --noheader --format='%N'", capture_output=True, text=True)
+        node = r.stdout.strip()
+        if not node:
+            print(f"Job {args.job_id} not found or not running.")
+            sys.exit(1)
+        print(f"Reconnecting to job {args.job_id} on {node}:{port}")
+        _tunnel(host, node, port, local_port, job_id=args.job_id, cancel_on_exit=False)
+        return
+
     if not args.new:
         r = ssh(
             host,
@@ -147,9 +158,10 @@ def cmd_connect(args):
     )
     subprocess.Popen(["ssh", host, start_cmd])
 
-    print(f"Waiting for {args.type} to start", end="", flush=True)
-    for _ in range(60):
-        time.sleep(2)
+    print(f"Waiting for {args.type} (Ctrl-C to abort)", end="", flush=True)
+    t0 = time.time()
+    while True:
+        time.sleep(5)
         r = ssh(
             host,
             f"python3 $HOME/bin/cluster status {args.type}",
@@ -158,18 +170,20 @@ def cmd_connect(args):
         )
         if r.returncode == 0:
             s = json.loads(r.stdout.strip())
-            print(f"\n{args.type} on {s['node']}:{s['port']}")
+            elapsed = int(time.time() - t0)
+            print(f"\n{args.type} on {s['node']}:{s['port']} (waited {elapsed}s)")
             _tunnel(
                 host, s["node"], s["port"], local_port, s.get("token"), s.get("job_id")
             )
             return
-        print(".", end="", flush=True)
+        elapsed = int(time.time() - t0)
+        if elapsed % 60 < 5:
+            print(f" [{elapsed//60}m]", end="", flush=True)
+        else:
+            print(".", end="", flush=True)
 
-    print("\nTimed out. Check the cluster.")
-    sys.exit(1)
 
-
-def _tunnel(host, node, remote_port, local_port, token=None, job_id=None):
+def _tunnel(host, node, remote_port, local_port, token=None, job_id=None, cancel_on_exit=True):
     tunnel = subprocess.Popen(
         ["ssh", "-N", "-L", f"{local_port}:localhost:{remote_port}", "-J", host, node]
     )
@@ -185,10 +199,12 @@ def _tunnel(host, node, remote_port, local_port, token=None, job_id=None):
         tunnel.wait()
     except KeyboardInterrupt:
         tunnel.terminate()
-        if job_id:
+        if cancel_on_exit and job_id:
             print(f"\nCancelling job {job_id}...")
             signal.signal(signal.SIGINT, signal.SIG_IGN)
             subprocess.run(["ssh", host, f"scancel {job_id}"])
+        else:
+            print(f"\nTunnel closed (job {job_id} still running).")
 
 
 # ── arg parsing ───────────────────────────────────────────────────────────────
@@ -225,6 +241,7 @@ def main():
     p.add_argument("--local-port", dest="local_port", type=int)
     p.add_argument("--cluster-host", dest="cluster_host", default="lam")
     p.add_argument("--new", action="store_true")
+    p.add_argument("--job-id", dest="job_id", help="reconnect to an existing job by SLURM job ID")
     add_srun_args(p)
 
     args = parser.parse_args()
