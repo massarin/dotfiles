@@ -3,10 +3,7 @@
   "permissions": {
     "allow": [
       "Read(**)",
-      "Write(**)",
       "Edit(**)",
-      "MultiEdit(**)",
-      "Glob(**)",
       "Grep(**)",
       "WebFetch(*)",
       "WebSearch(*)",
@@ -27,6 +24,7 @@
       "Bash(yarn *)",
       "Bash(pnpm *)",
       "Bash(bun *)",
+      "Bash(claude *)",
       "Bash(ls *)",
       "Bash(cat *)",
       "Bash(echo *)",
