@@ -49,3 +49,10 @@ print('Columns:', df.columns.tolist())
 
 # lazygit
 lazygit() { git add . && git commit -m "$1" && git push; }
+
+# wgetpdf URL [NAME] -> saves NAME.pdf (default: last path segment)
+wgetpdf() {
+  local url=$1
+  local name=${2:-$(basename "${url%%\?*}")}   # strip query string, take basename
+  wget -O "${name%.pdf}.pdf" "$url"            # %.pdf avoids double extension
+}
