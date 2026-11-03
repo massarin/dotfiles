@@ -19,3 +19,14 @@ unset __conda_setup
 
 eval "$(direnv hook zsh)"
 [ -f ~/.shell/init.sh ] && source ~/.shell/init.sh
+
+# >>> juliaup initialize >>>
+
+# !! Contents within this block are managed by juliaup !!
+
+path=('/Users/loco/.juliaup/bin' $path)
+export PATH
+# Tab completion for juliaup and julia channel selection
+[ -f "/Users/loco/.julia/juliaup/completions/zsh.zsh" ] && source "/Users/loco/.julia/juliaup/completions/zsh.zsh"
+
+# <<< juliaup initialize <<<

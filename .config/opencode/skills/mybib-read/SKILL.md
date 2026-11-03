@@ -1,38 +1,36 @@
 ---
 name: mybib-read
-description: Answer from Nicolo's own library at ~/cosmo/mybib - what his papers and code libraries contain, as claims with equations, arXiv anchors and the symbol that implements them. Use when asked what his sources say on a topic, for the equation or citation behind a relation, or for the reference to cite while writing code. Read only, works from any repo.
+description: Use whenever a paper is to be read, searched, quoted or cited, or an equation looked up in one, from any repo. For this we have a local paper library at ~/cosmo/mybib.  It contains tools to check the library and its cached fulltext; given an arXiv id, returns the local text, ingesting the paper first if missing. This is part of a local system/contract for handling literature.
 ---
 
 # mybib-read
 
-The library is at `~/cosmo/mybib`. Schema: its `SPEC.md`. Never restate that here.
+The library is at `~/cosmo/mybib`.
 
-Read only. Writing, ingesting and tagging are the project-scoped `mybib-ingest`
-skill, and are not available from another repo.
+## Search
+Explore library's metadata and papers fulltext:
+```
+rg -il "<terms>" ~/cosmo/mybib/sources/   # title, authors, keywords, abstract
+rg -il "<terms>" ~/cosmo/mybib/cache/txt/ ~/cosmo/mybib/fulltext/ # fulltext of every paper
+```
+A `cache/txt/<id>.txt` maps to its source by `rg -l "^arxiv: <id>$" ~/cosmo/mybib/sources/`; `fulltext/<citekey>_marker.md` by its citekey.
 
-## Query
-
-Three shapes, all ripgrep, all against absolute paths.
-
-    rg -l "^kind: shmr$" ~/cosmo/mybib/assets/                    # inventory by kind
-    rg -A20 "^kind: concentration_relation$" ~/cosmo/mybib/assets/  # the maths and the anchors
-    rg -l "\[\[halo_structure\]\]" ~/cosmo/mybib/sources/         # papers in a topic
-
-An asset is self-contained: `kind`, `source`, `anchor`, `symbol`, and the
-equation in `$$`. Answer from the asset, not from the cache and not from memory.
-
-`symbol` and `symbol_url` are the function that implements the equation, which is
-what makes an asset usable mid-code. Give both the equation and the symbol.
+## Read
+Fetch a paper:
+```
+python3 ~/cosmo/mybib/bin/get.py <arxiv id | arxiv url | citekey | zotero key>
+```
+`fulltext: marker` means machine conversion of a PDF with no arXiv text: `[#p12]` is printed page 12, cite Author Year p. 12, and check symbols against the PDF before quoting, bold vectors can be lost.
+If paper is in the library it prints the citekey, then the file to Read.
+Otherwise it is ingested -> (Zotero, `sources/`, cache, commit, push) first.
+No arXiv id yet: find it in `sources/` first, else ask, else `python3 ~/cosmo/mybib/bin/zfind.py "<title|doi>"` (read only).
 
 ## Cite
 
-From `~/cosmo/mybib/bib/library.bib`, by the source's `citekey`. Never invent a
-citekey: if the paper is not in `sources/`, say it is not in the library.
-
-## Scope
-
-- A source still reading `TODO summary from full text` is at the mapped tier: its
-  title, year and keywords are real, its contents are not yet in the graph. Say so
-  rather than reading `cache/` to improvise a summary.
-- A source with an empty `arxiv` field has no fulltext here, ever, by design.
-- Never edit anything under `~/cosmo/mybib` from another repo.
+Use arxiv's html paper version to cite and link to equation/section/figure.
+Quote equations as `[S3.E31](https://arxiv.org/html/<pinned id>#S3.E31)`, same goes for figures and subsections, notation is: `#Ch0.F9.fig1`=Figure 9, chapter 0
+`#S3.F1`=Figure 1 in section 3
+`#S3.T1`=Table 1 in section 3
+`#S4.SS4`=Subsection 4 in section 4.
+Sometimes the arxiv html conversion is not perfect but link always resolves to the paper so it doesn't matter.
+Grep the file for the anchor before quoting it.
