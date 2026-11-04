@@ -16,22 +16,16 @@
 !.github/
 !.github/README.md
 
-# opencode is the native home of rules, agents, skills
-!.config/
-!.config/opencode/
-!.config/opencode/AGENTS.md
-!.config/opencode/agents/
-!.config/opencode/agents/*.md
-!.config/opencode/skills/
-!.config/opencode/skills/**
-# synced by another tool
-.config/opencode/skills/synced/
-
-# committed symlinks into .config/opencode
+# .claude is the native home of rules, agents, skills
 !.claude/
 !.claude/CLAUDE.md
-!.claude/agents
-!.claude/skills
+!.claude/agents/
+!.claude/agents/*.md
+!.claude/skills/
+!.claude/skills/**
+!.claude/commands/
+!.claude/commands/**
+.claude/skills/synced/
 
 # editor cruft, re-excluded after the allowlist
 .*.sw?
