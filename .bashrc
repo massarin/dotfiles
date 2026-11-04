@@ -1,4 +1,7 @@
-[ -f ~/.shell/init.sh ] && source ~/.shell/init.sh
+export PATH="$HOME/.local/bin:$PATH"
+
+# Source every *.sh in ~/.shell, gitignored ones too (secrets, per-machine settings)
+for f in ~/.shell/*.sh; do source "$f"; done
 
 # >>> juliaup initialize >>>
 

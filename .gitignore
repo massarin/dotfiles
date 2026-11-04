@@ -10,9 +10,6 @@
 # secrets and machine overrides
 .shell/local.sh
 
-!bin/
-!bin/cluster
-
 !.github/
 !.github/README.md
 

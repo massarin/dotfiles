@@ -7,8 +7,5 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias c='clear'
 
-# Claude, MAKE SURE /sandox IS ON
+# skips permission prompts: keep the sandbox on
 alias yolo='claude --dangerously-skip-permissions'
-
-# VPN
-alias vpn='sudo openfortivpn -c /etc/openfortivpn/config'

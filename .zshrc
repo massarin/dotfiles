@@ -1,3 +1,10 @@
+# Source every *.sh in ~/.shell, gitignored ones too (secrets, per-machine settings)
+for f in ~/.shell/*.sh; do source "$f"; done
+
+export PATH="$HOME/.local/bin:$PATH"
+eval "$(direnv hook zsh)"
+
+
 # Colorful ls on mac
 export CLICOLOR=1
 export LSCOLORS=GxFxCxDxBxegedabagaced
@@ -16,9 +23,6 @@ else
 fi
 unset __conda_setup
 # <<< conda initialize <<<
-
-eval "$(direnv hook zsh)"
-[ -f ~/.shell/init.sh ] && source ~/.shell/init.sh
 
 # >>> juliaup initialize >>>
 
