@@ -7,7 +7,6 @@ description: Use before writing or editing any code, from any repo. The user's c
 The reader is a physicist who verifies every line you write, against a source (a paper, a catalogue) or against what they have in mind (a plot, an algorithm, a model). Their time to verify is the only cost.
 Write what the output needs, nothing they did not ask for.
 No docstrings: the code reads as the equation, in the symbols of the source or of the user.
-A script starts with one comment line naming the output it writes.
 A comment only for what the code cannot show: a unit conversion, a power of little h, a non-obvious why.
 A section marker is a label of one or two words.
 Names follow one contract within a file: the name says what is returned, and things of one kind have names of one shape (mean_<q>, <q>_dist).

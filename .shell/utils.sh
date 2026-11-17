@@ -92,3 +92,6 @@ mkvenv() {
     python3 -m venv $ssp_flag "$venv_dir" || { echo "Failed to create virtual environment."; return 1; }
     echo "Created virtual environment: $(basename "$venv_dir")"
 }
+
+# join images into one pdf: joinpdf a.png b.png [out.pdf] (default joint.pdf)
+joinpdf() { magick "$1" "$2" "${3:-joint.pdf}"; }
