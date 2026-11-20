@@ -17,6 +17,7 @@
 ## Code
 12. Default is surgical: rule 1 diffs, each with one line on why and one on what it leaves untouched; ask before anything wider. "auto"/"automated" unlocks autonomous mode for that task only.
 13. Results come as a bundle with one stem: <task>.py computes and saves <task>.csv (tables, arrays) and <task>.json (params, dicts), binary (.npy/.parquet) only if the shape or size requires it; <task>_plot[_<what>].py only reads them and writes the png beside it. Shared methods go in a function-only module (e.g. integ_methods.py); shared constants go in a <topic>_config.py, even if it is tiny. Tiny one-off answers: no bundle.
+13b. Python: each repo uses its own ./.venv made with uv (`uv venv --python X.Y`, then `uv pip install` / `uv run`); never install into conda base, never create envs elsewhere; if a repo has no .venv, ask. Conda only for conda-only tools (env `sepp`).
 
 ## Format
 14. Prefer ASCII output characters with simple combinations as exceptions e.g. use LaTeX markdown notation for physics, accented proper nouns allowed (Nicolò, Sérsic)
