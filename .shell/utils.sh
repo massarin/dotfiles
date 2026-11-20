@@ -73,12 +73,12 @@ avenv() {
 mkvenv() {
     local venv_dir=".venv"
     local use_ssp=0
-    local py=""
+    local -a py=()
 
     for arg in "$@"; do
         case "$arg" in
             -ssp) use_ssp=1 ;;
-            3.*)  py="--python $arg" ;;
+            3.*)  py=(--python "$arg") ;;
             *)    venv_dir="$arg" ;;
         esac
     done
@@ -91,7 +91,7 @@ mkvenv() {
     local ssp_flag=""
     [ "$use_ssp" -eq 1 ] && ssp_flag="--system-site-packages"
 
-    uv venv ${=py} $ssp_flag "$venv_dir" || { echo "Failed to create virtual environment."; return 1; }
+    uv venv "${py[@]}" $ssp_flag "$venv_dir" || { echo "Failed to create virtual environment."; return 1; }
     echo "Created virtual environment: $(basename "$venv_dir")"
 }
 
